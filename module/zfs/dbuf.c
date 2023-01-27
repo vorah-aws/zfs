@@ -619,24 +619,24 @@ dbuf_is_l2cacheable(dmu_buf_impl_t *db)
 	zfs_cache_type_t cache = db->db_objset->os_secondary_cache;
 	blkptr_t *bp = db->db_blkptr;
 
-	if (bp != NULL && !BP_IS_HOLE(bp)) {
-		uint64_t vdev = DVA_GET_VDEV(bp->blk_dva);
-		vdev_t *rvd = db->db_objset->os_spa->spa_root_vdev;
+	if (cache == ZFS_CACHE_ALL ||
+            (dbuf_is_metadata(db) && cache == ZFS_CACHE_METADATA)) {
+        	if (l2arc_exclude_special == 0) {
+        		return (B_TRUE);
+        	}
+        	else if (bp != NULL && !BP_IS_HOLE(bp)) {
+        		uint64_t vdev = DVA_GET_VDEV(bp->blk_dva);
+                        vdev_t *rvd = db->db_objset->os_spa->spa_root_vdev;
 
-		if (vdev < rvd->vdev_children)
-			vd = rvd->vdev_child[vdev];
+                        if (vdev < rvd->vdev_children)
+                        	vd = rvd->vdev_child[vdev];
 
-		if (cache == ZFS_CACHE_ALL ||
-		    (dbuf_is_metadata(db) && cache == ZFS_CACHE_METADATA)) {
-			if (vd == NULL)
-				return (B_TRUE);
-
-			if ((vd->vdev_alloc_bias != VDEV_BIAS_SPECIAL &&
-			    vd->vdev_alloc_bias != VDEV_BIAS_DEDUP) ||
-			    l2arc_exclude_special == 0)
-				return (B_TRUE);
-		}
-	}
+                        if (vd == NULL ||
+                            (vd->vdev_alloc_bias != VDEV_BIAS_SPECIAL &&
+                            vd->vdev_alloc_bias != VDEV_BIAS_DEDUP))
+                        	return (B_TRUE);
+        	}
+        }
 
 	return (B_FALSE);
 }
@@ -647,25 +647,25 @@ dnode_level_is_l2cacheable(blkptr_t *bp, dnode_t *dn, int64_t level)
 	vdev_t *vd = NULL;
 	zfs_cache_type_t cache = dn->dn_objset->os_secondary_cache;
 
-	if (bp != NULL && !BP_IS_HOLE(bp)) {
-		uint64_t vdev = DVA_GET_VDEV(bp->blk_dva);
-		vdev_t *rvd = dn->dn_objset->os_spa->spa_root_vdev;
+	if (cache == ZFS_CACHE_ALL || ((level > 0 ||
+            DMU_OT_IS_METADATA(dn->dn_handle->dnh_dnode->dn_type)) &&
+            cache == ZFS_CACHE_METADATA)) {
+        	if (l2arc_exclude_special == 0) {
+        		return (B_TRUE);
+        	}
+        	else if (bp != NULL && !BP_IS_HOLE(bp)) {
+        		uint64_t vdev = DVA_GET_VDEV(bp->blk_dva);
+                        vdev_t *rvd = dn->dn_objset->os_spa->spa_root_vdev;
 
-		if (vdev < rvd->vdev_children)
-			vd = rvd->vdev_child[vdev];
+                        if (vdev < rvd->vdev_children)
+                        	vd = rvd->vdev_child[vdev];
 
-		if (cache == ZFS_CACHE_ALL || ((level > 0 ||
-		    DMU_OT_IS_METADATA(dn->dn_handle->dnh_dnode->dn_type)) &&
-		    cache == ZFS_CACHE_METADATA)) {
-			if (vd == NULL)
-				return (B_TRUE);
-
-			if ((vd->vdev_alloc_bias != VDEV_BIAS_SPECIAL &&
-			    vd->vdev_alloc_bias != VDEV_BIAS_DEDUP) ||
-			    l2arc_exclude_special == 0)
-				return (B_TRUE);
-		}
-	}
+                        if (vd == NULL ||
+                            (vd->vdev_alloc_bias != VDEV_BIAS_SPECIAL &&
+                            vd->vdev_alloc_bias != VDEV_BIAS_DEDUP))
+                        	return (B_TRUE);
+        	}
+        }
 
 	return (B_FALSE);
 }

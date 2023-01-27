@@ -423,21 +423,21 @@ dmu_os_is_l2cacheable(objset_t *os)
 	zfs_cache_type_t cache = os->os_secondary_cache;
 	blkptr_t *bp = os->os_rootbp;
 
-	if (bp != NULL && !BP_IS_HOLE(bp)) {
-		uint64_t vdev = DVA_GET_VDEV(bp->blk_dva);
-		vdev_t *rvd = os->os_spa->spa_root_vdev;
+	if (cache == ZFS_CACHE_ALL || cache == ZFS_CACHE_METADATA) {
+		if (l2arc_exclude_special == 0) {
+			return (B_TRUE);
+		}
+		else if (bp != NULL && !BP_IS_HOLE(bp)) {
+			uint64_t vdev = DVA_GET_VDEV(bp->blk_dva);
+                        vdev_t *rvd = os->os_spa->spa_root_vdev;
 
-		if (vdev < rvd->vdev_children)
-			vd = rvd->vdev_child[vdev];
+                        if (vdev < rvd->vdev_children)
+                        	vd = rvd->vdev_child[vdev];
 
-		if (cache == ZFS_CACHE_ALL || cache == ZFS_CACHE_METADATA) {
-			if (vd == NULL)
-				return (B_TRUE);
-
-			if ((vd->vdev_alloc_bias != VDEV_BIAS_SPECIAL &&
-			    vd->vdev_alloc_bias != VDEV_BIAS_DEDUP) ||
-			    l2arc_exclude_special == 0)
-				return (B_TRUE);
+                        if (vd == NULL ||
+                            (vd->vdev_alloc_bias != VDEV_BIAS_SPECIAL &&
+                            vd->vdev_alloc_bias != VDEV_BIAS_DEDUP))
+                        	return (B_TRUE);
 		}
 	}
 
